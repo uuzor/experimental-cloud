@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+    name: AI Copy-Trading Signal Tracker
+spec:
+    description: Signal Tracker Service - Polls Hyperliquid for top trader activity and emits trading signals
+    icon: https://cdn.zeabur.com/marketplace/nodejs.svg
+    tags:
+        - Trading
+        - Hyperliquid
+        - Signal
+    readme: |
+        # AI Copy-Trading Signal Tracker
+
+        This service tracks top traders on Hyperliquid and emits trading signals.
+
+        ## Configuration
+
+        - `REDIS_URL` - Redis connection string
+        - `BACKEND_URL` - Backend API URL for heartbeat
+        - `LOG_LEVEL` - Logging level (default: info)
+    services:
+        - name: signal-tracker
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: ghcr.io/your-org/ai-copytrading-signal-tracker:latest
+                command:
+                    - node
+                    - dist/index.js
+            ports:
+                - id: web
+                  port: 3001
+                  type: TCP
+            dependencies:
+                - postgresql
+                - redis
+            env:
+                NODE_ENV:
+                    default: production
+                    expose: false
+                LOG_LEVEL:
+                    default: info
+                    expose: false
+                REDIS_URL:
+                    default: ${REDIS_URL}
+                    expose: false
+                BACKEND_URL:
+                    default: ${ZEABUR_WEB_URL}
+                    expose: false

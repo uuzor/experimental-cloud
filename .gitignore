@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+*.log
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Docker
+.dockerignore
+
+# Secrets (never commit)
+*.pem
+*.key
+secrets/

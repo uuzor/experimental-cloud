@@ -1,0 +1,200 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+    name: AI Copy-Trading Platform
+spec:
+    description: Complete AI Copy-Trading Signal Platform - Backend API, Signal Tracker, PostgreSQL, Redis
+    icon: https://cdn.zeabur.com/marketplace/postgresql.svg
+    tags:
+        - Trading
+        - Hyperliquid
+        - Database
+    readme: |
+        # AI Copy-Trading Platform
+
+        Complete copy-trading platform for Hyperliquid with:
+        - Backend API (Auth, Agent Management, Telemetry)
+        - Signal Tracker (Top trader monitoring, signal emission)
+        - PostgreSQL database
+        - Redis cache/pub-sub
+
+        ## Build & Push Docker Images
+
+        Before deploying, build and push Docker images:
+
+        ```bash
+        # Backend
+        docker buildx build --platform linux/amd64 --target runner -t ghcr.io/YOUR_ORG/ai-copytrading-backend:latest -f backend/Dockerfile --push .
+
+        # Signal Tracker
+        docker buildx build --platform linux/amd64 --target runner -t ghcr.io/YOUR_ORG/ai-copytrading-signal-tracker:latest -f signal-tracker/Dockerfile --push .
+        ```
+    services:
+        - name: postgresql
+          icon: https://cdn.zeabur.com/marketplace/postgresql.svg
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: postgres:18
+                command:
+                    - docker-entrypoint.sh
+                    - -c
+                    - config_file=/etc/postgresql/postgresql.conf
+            ports:
+                - id: database
+                  port: 5432
+                  type: TCP
+            portForwarding:
+                enabled: true
+            volumes:
+                - id: data
+                  dir: /var/lib/postgresql/18/docker
+            env:
+                PGDATA:
+                    default: /var/lib/postgresql/18/docker/pgdata
+                    expose: false
+                POSTGRES_CONNECTION_STRING:
+                    default: postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}
+                    expose: true
+                POSTGRES_DATABASE:
+                    default: ${POSTGRES_DB}
+                    expose: true
+                POSTGRES_DB:
+                    default: ai_copytrading
+                POSTGRES_HOST:
+                    default: ${CONTAINER_HOSTNAME}
+                    expose: true
+                POSTGRES_PASSWORD:
+                    default: ${PASSWORD}
+                    expose: true
+                POSTGRES_PORT:
+                    default: ${DATABASE_PORT}
+                    expose: true
+                POSTGRES_URI:
+                    default: ${POSTGRES_CONNECTION_STRING}
+                    expose: true
+                POSTGRES_USER:
+                    default: root
+                POSTGRES_USERNAME:
+                    default: ${POSTGRES_USER}
+                    expose: true
+            configs:
+                - path: /etc/postgresql/postgresql.conf
+                  template: |
+                    listen_addresses = '*'
+                    max_connections = 256
+                    shared_buffers = 256MB
+                    dynamic_shared_memory_type = posix
+                    max_wal_size = 1GB
+                    min_wal_size = 80MB
+                    log_timezone = 'UTC'
+                    datestyle = 'iso, mdy'
+                    timezone = 'UTC'
+                    lc_messages = 'en_US.UTF-8'
+                    lc_monetary = 'en_US.UTF-8'
+                    lc_numeric = 'en_US.UTF-8'
+                    lc_time = 'en_US.UTF-8'
+                    default_text_search_config = 'pg_catalog.english'
+                  permission: null
+                  envsubst: null
+
+        - name: redis
+          icon: https://cdn.zeabur.com/marketplace/redis.svg
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: redis:7-alpine
+                command:
+                    - redis-server
+            ports:
+                - id: redis
+                  port: 6379
+                  type: TCP
+            portForwarding:
+                enabled: true
+            volumes:
+                - id: data
+                  dir: /data
+            env:
+                REDIS_PASSWORD:
+                    default: ${PASSWORD}
+                    expose: true
+                REDIS_HOST:
+                    default: ${CONTAINER_HOSTNAME}
+                    expose: true
+                REDIS_PORT:
+                    default: ${REDIS_PORT}
+                    expose: true
+                REDIS_URL:
+                    default: redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}
+                    expose: true
+
+        - name: backend
+          icon: https://cdn.zeabur.com/marketplace/fastify.svg
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: ghcr.io/ai-copytrading/backend:latest
+                command:
+                    - node
+                    - dist/server.js
+            ports:
+                - id: web
+                  port: 3000
+                  type: HTTP
+                  domainKey: PUBLIC_DOMAIN
+            dependencies:
+                - postgresql
+                - redis
+            env:
+                NODE_ENV:
+                    default: production
+                    expose: false
+                PORT:
+                    default: "3000"
+                    expose: false
+                DATABASE_URL:
+                    default: ${POSTGRES_CONNECTION_STRING}
+                    expose: false
+                JWT_SECRET:
+                    default: ${PASSWORD}
+                    expose: false
+                JWT_EXPIRES_IN:
+                    default: 7d
+                    expose: false
+                PLATFORM_API_KEY:
+                    default: ${PASSWORD}
+                    expose: false
+                REDIS_URL:
+                    default: ${REDIS_URL}
+                    expose: false
+
+        - name: signal-tracker
+          icon: https://cdn.zeabur.com/marketplace/nodejs.svg
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: ghcr.io/ai-copytrading/signal-tracker:latest
+                command:
+                    - node
+                    - dist/index.js
+            ports:
+                - id: web
+                  port: 3001
+                  type: TCP
+            dependencies:
+                - redis
+            env:
+                NODE_ENV:
+                    default: production
+                    expose: false
+                LOG_LEVEL:
+                    default: info
+                    expose: false
+                REDIS_URL:
+                    default: ${REDIS_URL}
+                    expose: false
+                BACKEND_URL:
+                    default: ${ZEABUR_WEB_URL}
+                    expose: false
