@@ -1,5 +1,5 @@
 {
-  "name": "ai-copytrading-backend-v2",
+  "name": "ai-copytrading-backend",
   "version": "1.0.0",
   "description": "AI Copy-Trading Signal Platform - Core Backend",
   "main": "dist/index.js",
