@@ -2,6 +2,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { pool } from '../db/index.js';
 import { logger } from '../db/logger.js';
 import { logAuditEvent } from '../services/audit.js';
+import { 
+  createZeaburService, 
+  deleteZeaburService,
+  getZeaburService,
+  restartZeaburService
+} from '../services/zeabur.js';
 import { z } from 'zod';
 
 const agentLogger = logger.child({ module: 'execution-agents' });
@@ -37,6 +43,7 @@ declare module '@fastify/jwt' {
 }
 
 export async function executionAgentRoutes(fastify: FastifyInstance) {
+  
   // Create execution agent
   fastify.post(
     '/',
@@ -51,7 +58,7 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const user = request.user as { id: string };
+      const user = request.user as { id: string; email: string };
       const { max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled } =
         parseResult.data;
 
@@ -68,28 +75,89 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Create execution agent
+        // Generate agent token for authentication
+        const agentToken = crypto.randomUUID();
+        
+        // Create execution agent in DB
         const result = await pool.query(
           `INSERT INTO execution_agents
-           (user_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, status)
-           VALUES ($1, $2, $3, $4, $5, 'provisioning')
+           (user_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agent_token, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'provisioning')
            RETURNING *`,
-          [user.id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled]
+          [user.id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agentToken]
         );
 
         const agent = result.rows[0];
+        const zeaburProjectId = process.env.ZEABUR_PROJECT_ID;
+        
+        // Provision Zeabur service
+        const imageName = process.env.EXECUTION_AGENT_IMAGE || 'ghcr.io/uuzor/experimental-cloud/execution-agent:latest';
+        
+        const zeaburService = await createZeaburService(
+          zeaburProjectId || '',
+          agent.id,
+          {
+            name: `agent-${agent.id.substring(0, 8)}`,
+            image: imageName,
+            port: 3002,
+            env: {
+              'AGENT_ID': agent.id,
+              'AGENT_TOKEN': agentToken,
+              'BACKEND_URL': process.env.BACKEND_URL || 'http://backend:3000',
+              'REDIS_URL': process.env.REDIS_URL || '',
+              'PLATFORM_API_KEY': process.env.PLATFORM_API_KEY || '',
+              'MAX_POSITION_USD': max_position_usd.toString(),
+              'MAX_LEVERAGE': max_leverage.toString(),
+              'LOG_LEVEL': 'info',
+            },
+          }
+        );
+
+        if (zeaburService) {
+          // Update agent with Zeabur service info
+          await pool.query(
+            `UPDATE execution_agents 
+             SET zeabur_service_id = $1, internal_url = $2, status = 'active'
+             WHERE id = $3`,
+            [zeaburService.id, zeaburService.url, agent.id]
+          );
+          
+          agent.zeabur_service_id = zeaburService.id;
+          agent.internal_url = zeaburService.url;
+          agent.status = 'active';
+        } else {
+          // Failed to provision, mark as failed
+          await pool.query(
+            `UPDATE execution_agents SET status = 'failed' WHERE id = $1`,
+            [agent.id]
+          );
+          agent.status = 'failed';
+        }
 
         await logAuditEvent({
           actor: user.id,
           action: 'execution_agent.create',
           target_type: 'execution_agent',
           target_id: agent.id,
-          detail: { max_position_usd, max_leverage, llm_filter_enabled },
+          detail: { max_position_usd, max_leverage, llm_filter_enabled, zeaburServiceId: zeaburService?.id },
         });
 
         agentLogger.info({ userId: user.id, agentId: agent.id }, 'Execution agent created');
 
-        return reply.status(201).send({ agent });
+        return reply.status(201).send({ 
+          agent: {
+            id: agent.id,
+            status: agent.status,
+            internalUrl: agent.internal_url,
+            zeaburServiceId: agent.zeabur_service_id,
+            config: {
+              maxPositionUsd: agent.max_position_usd,
+              maxLeverage: agent.max_leverage,
+              llmFilterEnabled: agent.llm_filter_enabled,
+            },
+          },
+          agentToken, // Only returned on creation
+        });
       } catch (err) {
         agentLogger.error({ err }, 'Failed to create execution agent');
         return reply.status(500).send({ error: 'Internal server error' });
@@ -114,7 +182,23 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           return reply.status(404).send({ error: 'No execution agent found' });
         }
 
-        return reply.send({ agent: result.rows[0] });
+        const agent = result.rows[0];
+        return reply.send({ 
+          agent: {
+            id: agent.id,
+            status: agent.status,
+            internalUrl: agent.internal_url,
+            zeaburServiceId: agent.zeabur_service_id,
+            config: {
+              maxPositionUsd: agent.max_position_usd,
+              maxLeverage: agent.max_leverage,
+              dailyLossLimitUsd: agent.daily_loss_limit_usd,
+              llmFilterEnabled: agent.llm_filter_enabled,
+            },
+            lastHeartbeat: agent.last_heartbeat,
+            createdAt: agent.created_at,
+          },
+        });
       } catch (err) {
         agentLogger.error({ err }, 'Failed to get execution agent');
         return reply.status(500).send({ error: 'Internal server error' });
@@ -173,7 +257,6 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        // Get current agent
         const currentResult = await pool.query(
           `SELECT * FROM execution_agents WHERE id = $1`,
           [id]
@@ -222,6 +305,17 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           values
         );
 
+        // If Zeabur service exists, update its environment
+        if (currentAgent.zeabur_service_id && parseResult.data.max_position_usd) {
+          await updateZeaburServiceEnv(
+            process.env.ZEABUR_PROJECT_ID || '',
+            currentAgent.zeabur_service_id,
+            {
+              'MAX_POSITION_USD': parseResult.data.max_position_usd.toString(),
+            }
+          );
+        }
+
         await logAuditEvent({
           actor: user.id,
           action: 'execution_agent.config_update',
@@ -262,6 +356,14 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
 
         if (currentAgent.user_id !== user.id) {
           return reply.status(403).send({ error: 'Access denied' });
+        }
+
+        // Restart Zeabur service to trigger pause state
+        if (currentAgent.zeabur_service_id) {
+          await restartZeaburService(
+            process.env.ZEABUR_PROJECT_ID || '',
+            currentAgent.zeabur_service_id
+          );
         }
 
         const result = await pool.query(
@@ -314,6 +416,14 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ error: 'Agent is not suspended' });
         }
 
+        // Restart Zeabur service to resume
+        if (currentAgent.zeabur_service_id) {
+          await restartZeaburService(
+            process.env.ZEABUR_PROJECT_ID || '',
+            currentAgent.zeabur_service_id
+          );
+        }
+
         const result = await pool.query(
           `UPDATE execution_agents SET status = 'active' WHERE id = $1 RETURNING *`,
           [id]
@@ -358,6 +468,14 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
 
         if (currentAgent.user_id !== user.id) {
           return reply.status(403).send({ error: 'Access denied' });
+        }
+
+        // Delete Zeabur service
+        if (currentAgent.zeabur_service_id) {
+          await deleteZeaburService(
+            process.env.ZEABUR_PROJECT_ID || '',
+            currentAgent.zeabur_service_id
+          );
         }
 
         await pool.query(
