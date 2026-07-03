@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,8 +45,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # cache-from: disabled
-          # cache-to: disabled
+          no-cache: true
 
       - name: Image digest
         run: echo "Pushed image with digest: ${{ steps.meta.outputs.digest }}"
