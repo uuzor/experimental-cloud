@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+    name: AI Copy-Trading Execution Agent
+spec:
+    description: Per-user execution agent that subscribes to trading signals and executes trades
+    icon: https://cdn.zeabur.com/marketplace/python.svg
+    tags:
+        - Trading
+        - Execution Agent
+    # Template variables that can be set when deploying
+    variables:
+        - key: EXECUTION_AGENT_IMAGE
+          description: Docker image for the execution agent
+          default: ghcr.io/uuzor/experimental-cloud/execution-agent:latest
+        - key: MAX_POSITION_USD
+          description: Maximum position size in USD
+          default: "100"
+        - key: MAX_LEVERAGE
+          description: Maximum leverage
+          default: "3"
+        - key: ALLOWED_SYMBOLS
+          description: Comma-separated list of allowed trading symbols
+          default: "BTC,ETH"
+    services:
+        - name: execution-agent
+          template: PREBUILT_V2
+          spec:
+            source:
+                image: ${EXECUTION_AGENT_IMAGE}
+                command:
+                    - python
+                    - -m
+                    - src.executor_agent.main
+            ports:
+                - id: api
+                  port: 3002
+                  type: HTTP
+                  domainKey: PUBLIC_DOMAIN
+            env:
+                NODE_ENV:
+                    default: production
+                PORT:
+                    default: "3002"
+                # Agent configuration (set by backend on creation)
+                AGENT_ID:
+                    default: ""
+                    description: "Agent UUID from backend"
+                AGENT_TOKEN:
+                    default: ""
+                    description: "Authentication token from backend"
+                BACKEND_URL:
+                    default: ${BACKEND_URL}
+                REDIS_URL:
+                    default: ${REDIS_URL}
+                PLATFORM_API_KEY:
+                    default: ${PLATFORM_API_KEY}
+                MAX_POSITION_USD:
+                    default: "100"
+                MAX_LEVERAGE:
+                    default: "3"
+                ALLOWED_SYMBOLS:
+                    default: "BTC,ETH"
+                LOG_LEVEL:
+                    default: info

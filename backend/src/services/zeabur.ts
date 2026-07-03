@@ -1,6 +1,8 @@
 /**
- * Zeabur Service Provisioner
- * Handles creation/management of per-user execution agent containers on Zeabur
+ * Zeabur Service Manager
+ * 
+ * Handles dynamic deployment of execution agents to Zeabur.
+ * Uses Zeabur REST API for service management.
  */
 
 import { logger } from '../db/logger.js';
@@ -12,257 +14,325 @@ export interface ZeaburServiceConfig {
   image: string;
   env: Record<string, string>;
   port?: number;
+  region?: string;
 }
 
 export interface ZeaburService {
   id: string;
   name: string;
   url: string;
-  status: string;
+  status: 'active' | 'inactive' | 'deploying';
 }
 
-/**
- * Create a new Zeabur service for an execution agent
- */
-export async function createZeaburService(
-  projectId: string,
-  agentId: string,
-  config: ZeaburServiceConfig
-): Promise<ZeaburService | null> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    zeaburLogger.warn('ZEABUR_API_KEY not set, skipping service creation');
-    // Return mock service for development
+export interface ZeaburTemplate {
+  id: string;
+  name: string;
+  image: string;
+  defaultEnv: Record<string, string>;
+  port: number;
+}
+
+// Zeabur API base URL
+const ZEABUR_API_BASE = 'https://api.zeabur.com/v1';
+
+export class ZeaburServiceManager {
+  private apiKey: string;
+  private projectId: string;
+  private baseUrl: string;
+
+  constructor(apiKey?: string, projectId?: string) {
+    this.apiKey = apiKey || process.env.ZEABUR_API_KEY || '';
+    this.projectId = projectId || process.env.ZEABUR_PROJECT_ID || '';
+    this.baseUrl = ZEABUR_API_BASE;
+  }
+
+  private get headers(): HeadersInit {
     return {
-      id: `mock-${agentId}`,
-      name: config.name,
-      url: `https://agent-${agentId.substring(0, 8)}.zeabur.app`,
-      status: 'active',
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
     };
   }
 
-  try {
-    const response = await fetch('https://api.zeabur.com/v1/services', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${zeaburApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        projectId,
-        name: config.name,
-        template: 'docker',
-        image: config.image,
-        env: config.env,
-        port: config.port || 3002,
-      }),
-    });
+  isConfigured(): boolean {
+    return !!(this.apiKey && this.projectId);
+  }
 
-    if (!response.ok) {
-      const error = await response.text();
-      zeaburLogger.error({ status: response.status, error }, 'Failed to create Zeabur service');
-      return null;
+  /**
+   * Create a new service from template
+   */
+  async createService(config: ZeaburServiceConfig): Promise<ZeaburService | null> {
+    if (!this.isConfigured()) {
+      zeaburLogger.warn('Zeabur not configured, returning mock service');
+      return this.getMockService(config.name);
     }
 
-    const service = await response.json() as ZeaburService;
-    zeaburLogger.info({ serviceId: service.id, agentId }, 'Zeabur service created');
-    
-    return service;
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error creating Zeabur service');
-    return null;
-  }
-}
-
-/**
- * Get Zeabur service status
- */
-export async function getZeaburService(
-  projectId: string,
-  serviceId: string
-): Promise<ZeaburService | null> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    return {
-      id: serviceId,
-      name: 'mock-service',
-      url: `https://agent-${serviceId.substring(0, 8)}.zeabur.app`,
-      status: 'active',
-    };
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.zeabur.com/v1/services/${serviceId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${zeaburApiKey}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      zeaburLogger.error({ status: response.status }, 'Failed to get Zeabur service');
-      return null;
-    }
-
-    return await response.json() as ZeaburService;
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error getting Zeabur service');
-    return null;
-  }
-}
-
-/**
- * Update Zeabur service environment variables
- */
-export async function updateZeaburServiceEnv(
-  projectId: string,
-  serviceId: string,
-  env: Record<string, string>
-): Promise<boolean> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    zeaburLogger.info({ serviceId, env }, 'Mock: Would update service env');
-    return true;
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.zeabur.com/v1/services/${serviceId}/env`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${zeaburApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ env }),
-      }
-    );
-
-    if (!response.ok) {
-      zeaburLogger.error({ status: response.status }, 'Failed to update service env');
-      return false;
-    }
-
-    zeaburLogger.info({ serviceId }, 'Zeabur service env updated');
-    return true;
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error updating Zeabur service env');
-    return false;
-  }
-}
-
-/**
- * Delete Zeabur service
- */
-export async function deleteZeaburService(
-  projectId: string,
-  serviceId: string
-): Promise<boolean> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    zeaburLogger.info({ serviceId }, 'Mock: Would delete service');
-    return true;
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.zeabur.com/v1/services/${serviceId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${zeaburApiKey}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      zeaburLogger.error({ status: response.status }, 'Failed to delete Zeabur service');
-      return false;
-    }
-
-    zeaburLogger.info({ serviceId }, 'Zeabur service deleted');
-    return true;
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error deleting Zeabur service');
-    return false;
-  }
-}
-
-/**
- * Restart Zeabur service
- */
-export async function restartZeaburService(
-  projectId: string,
-  serviceId: string
-): Promise<boolean> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    zeaburLogger.info({ serviceId }, 'Mock: Would restart service');
-    return true;
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.zeabur.com/v1/services/${serviceId}/restart`,
-      {
+    try {
+      const response = await fetch(`${this.baseUrl}/services`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${zeaburApiKey}`,
-        },
+        headers: this.headers,
+        body: JSON.stringify({
+          projectId: this.projectId,
+          name: config.name,
+          image: config.image,
+          env: config.env,
+          port: config.port || 3002,
+          region: config.region,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        zeaburLogger.error({ status: response.status, error }, 'Failed to create Zeabur service');
+        return null;
       }
-    );
 
-    if (!response.ok) {
-      zeaburLogger.error({ status: response.status }, 'Failed to restart service');
-      return false;
-    }
-
-    zeaburLogger.info({ serviceId }, 'Zeabur service restarted');
-    return true;
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error restarting Zeabur service');
-    return false;
-  }
-}
-
-/**
- * Get service logs
- */
-export async function getZeaburServiceLogs(
-  projectId: string,
-  serviceId: string,
-  lines: number = 100
-): Promise<string | null> {
-  const zeaburApiKey = process.env.ZEABUR_API_KEY;
-  
-  if (!zeaburApiKey) {
-    return '[Mock logs] Service running normally';
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.zeabur.com/v1/services/${serviceId}/logs?lines=${lines}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${zeaburApiKey}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
+      const service = await response.json() as ZeaburService;
+      zeaburLogger.info({ serviceId: service.id, name: config.name }, 'Zeabur service created');
+      
+      return service;
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error creating Zeabur service');
       return null;
     }
+  }
 
-    return await response.text();
-  } catch (err) {
-    zeaburLogger.error({ err }, 'Error getting service logs');
-    return null;
+  /**
+   * Get service status
+   */
+  async getService(serviceId: string): Promise<ZeaburService | null> {
+    if (!this.isConfigured()) {
+      return this.getMockService(serviceId);
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/services/${serviceId}`, {
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        zeaburLogger.error({ status: response.status }, 'Failed to get Zeabur service');
+        return null;
+      }
+
+      return await response.json() as ZeaburService;
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error getting Zeabur service');
+      return null;
+    }
+  }
+
+  /**
+   * Delete a service
+   */
+  async deleteService(serviceId: string): Promise<boolean> {
+    if (!this.isConfigured()) {
+      zeaburLogger.info({ serviceId }, 'Mock: Would delete service');
+      return true;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/services/${serviceId}`, {
+        method: 'DELETE',
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        zeaburLogger.error({ status: response.status }, 'Failed to delete Zeabur service');
+        return false;
+      }
+
+      zeaburLogger.info({ serviceId }, 'Zeabur service deleted');
+      return true;
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error deleting Zeabur service');
+      return false;
+    }
+  }
+
+  /**
+   * Restart a service
+   */
+  async restartService(serviceId: string): Promise<boolean> {
+    if (!this.isConfigured()) {
+      zeaburLogger.info({ serviceId }, 'Mock: Would restart service');
+      return true;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/services/${serviceId}/restart`, {
+        method: 'POST',
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        zeaburLogger.error({ status: response.status }, 'Failed to restart Zeabur service');
+        return false;
+      }
+
+      zeaburLogger.info({ serviceId }, 'Zeabur service restarted');
+      return true;
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error restarting Zeabur service');
+      return false;
+    }
+  }
+
+  /**
+   * Update service environment variables
+   */
+  async updateServiceEnv(serviceId: string, env: Record<string, string>): Promise<boolean> {
+    if (!this.isConfigured()) {
+      zeaburLogger.info({ serviceId }, 'Mock: Would update env');
+      return true;
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/services/${serviceId}/env`, {
+        method: 'PUT',
+        headers: this.headers,
+        body: JSON.stringify({ env }),
+      });
+
+      if (!response.ok) {
+        zeaburLogger.error({ status: response.status }, 'Failed to update service env');
+        return false;
+      }
+
+      zeaburLogger.info({ serviceId }, 'Zeabur service env updated');
+      return true;
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error updating service env');
+      return false;
+    }
+  }
+
+  /**
+   * Get service logs
+   */
+  async getServiceLogs(serviceId: string, lines: number = 100): Promise<string | null> {
+    if (!this.isConfigured()) {
+      return '[Mock logs] Service running normally\n[Mock] Last line at 10:00:00';
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/services/${serviceId}/logs?lines=${lines}`,
+        { headers: this.headers }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.text();
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error getting service logs');
+      return null;
+    }
+  }
+
+  /**
+   * Get all services in project
+   */
+  async listServices(): Promise<ZeaburService[]> {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/projects/${this.projectId}/services`, {
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        zeaburLogger.error({ status: response.status }, 'Failed to list services');
+        return [];
+      }
+
+      return await response.json() as ZeaburService[];
+    } catch (err) {
+      zeaburLogger.error({ err }, 'Error listing services');
+      return [];
+    }
+  }
+
+  /**
+   * Create a reusable template for execution agents
+   */
+  async createAgentTemplate(image: string): Promise<ZeaburTemplate | null> {
+    const template: ZeaburTemplate = {
+      id: `agent-template-${Date.now()}`,
+      name: 'Execution Agent Template',
+      image,
+      defaultEnv: {
+        'NODE_ENV': 'production',
+        'PORT': '3002',
+        'REDIS_URL': '${REDIS_URL}',
+        'BACKEND_URL': '${BACKEND_URL}',
+        'PLATFORM_API_KEY': '${PLATFORM_API_KEY}',
+        'LOG_LEVEL': 'info',
+      },
+      port: 3002,
+    };
+
+    zeaburLogger.info({ template }, 'Agent template created');
+    return template;
+  }
+
+  /**
+   * Deploy execution agent for a user
+   */
+  async deployExecutionAgent(
+    agentId: string,
+    agentToken: string,
+    config: {
+      maxPositionUsd?: number;
+      maxLeverage?: number;
+      allowedSymbols?: string[];
+    }
+  ): Promise<ZeaburService | null> {
+    const imageName = process.env.EXECUTION_AGENT_IMAGE || 
+                      'ghcr.io/uuzor/experimental-cloud/execution-agent:latest';
+    const backendUrl = process.env.BACKEND_URL || 'http://backend:3000';
+
+    const serviceConfig: ZeaburServiceConfig = {
+      name: `agent-${agentId.substring(0, 8)}`,
+      image: imageName,
+      port: 3002,
+      env: {
+        'AGENT_ID': agentId,
+        'AGENT_TOKEN': agentToken,
+        'BACKEND_URL': backendUrl,
+        'REDIS_URL': process.env.REDIS_URL || '',
+        'PLATFORM_API_KEY': process.env.PLATFORM_API_KEY || '',
+        'MAX_POSITION_USD': String(config.maxPositionUsd || 100),
+        'MAX_LEVERAGE': String(config.maxLeverage || 3),
+        'ALLOWED_SYMBOLS': (config.allowedSymbols || ['BTC', 'ETH']).join(','),
+        'LOG_LEVEL': 'info',
+        'NODE_ENV': 'production',
+      },
+    };
+
+    return this.createService(serviceConfig);
+  }
+
+  /**
+   * Generate service URL from service ID
+   */
+  getServiceUrl(serviceId: string): string {
+    // Zeabur provides URLs in format: https://{service-name}.zeabur.app
+    return `https://${serviceId.substring(0, 8)}.zeabur.app`;
+  }
+
+  private getMockService(name: string): ZeaburService {
+    return {
+      id: `mock-${Date.now()}`,
+      name,
+      url: `https://${name.toLowerCase().replace(/\s+/g, '-')}.zeabur.app`,
+      status: 'active',
+    };
   }
 }
+
+// Singleton instance
+export const zeaburManager = new ZeaburServiceManager();
