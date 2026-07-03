@@ -100,12 +100,10 @@ export class TraderStore {
 
       traders.push({
         address,
-        pnl7d,
         pnlPercent7d,
         drawdown,
         winRate,
         totalTrades: trader.trades.length,
-        volume24h,
         lastUpdated: trader.lastUpdated,
       });
     }

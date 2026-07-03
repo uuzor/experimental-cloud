@@ -218,6 +218,8 @@ export class SignalDetector {
       unrealizedPnlPercent: pnlPercent,
       timestamp: Date.now(),
       tradeHash,
+      signalId: `${address}-${symbol}-${Date.now()}`,
+      action: 'open' as const,
     };
   }
 }

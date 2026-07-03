@@ -69,3 +69,13 @@ export interface TradingSignal {
 // Redis pub/sub channels - V1
 export const SIGNAL_CHANNEL = 'signals:v1';
 export const TOP_TRADERS_CHANNEL = 'top_traders:v1';
+
+// Top trader tracking
+export interface TopTrader {
+  address: string;
+  pnlPercent7d: number;
+  drawdown: number;
+  winRate: number;
+  totalTrades: number;
+  lastUpdated: number;
+}

@@ -177,6 +177,8 @@ describe('SignalPublisher - Real Redis', () => {
         unrealizedPnlPercent: 5.0,
         timestamp: Date.now(),
         tradeHash: '0x' + Math.random().toString(16).slice(2),
+        signalId: 'test-signal-1',
+        action: 'open' as const,
       };
 
       // Should not throw
