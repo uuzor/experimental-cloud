@@ -10,7 +10,6 @@ on:
         options:
           - backend
           - signal-tracker
-          - execution-agent
           - all
       environment:
         description: 'Environment'
@@ -30,78 +29,42 @@ jobs:
     if: github.event.inputs.service == 'backend' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Zeabur CLI
+        run: |
+          npm install -g zeabur-cli
+
       - name: Deploy to Zeabur
         run: |
-          # Zeabur CLI deployment
-          curl -sL https://install.zeabur.app | bash
-          export PATH="$HOME/.zeabur/bin:$PATH"
-          
-          # Deploy using template
           zeabur deploy \
             --project ${{ secrets.ZEABUR_PROJECT_ID }} \
             --service backend \
             --template infrastructure/backend.yaml
+        env:
+          ZEABUR_TOKEN: ${{ secrets.ZEABUR_TOKEN }}
 
   deploy-signal-tracker:
     if: github.event.inputs.service == 'signal-tracker' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Zeabur CLI
+        run: |
+          npm install -g zeabur-cli
+
       - name: Deploy to Zeabur
         run: |
-          curl -sL https://install.zeabur.app | bash
-          export PATH="$HOME/.zeabur/bin:$PATH"
-          
           zeabur deploy \
             --project ${{ secrets.ZEABUR_PROJECT_ID }} \
             --service signal-tracker \
             --template infrastructure/signal-tracker.yaml
-
-  deploy-execution-agent:
-    if: github.event.inputs.service == 'execution-agent' || github.event.inputs.service == 'all'
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push execution agent image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./execution-agent
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.REPO }}/execution-agent:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.REPO }}/execution-agent:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Deploy per-user agent to Zeabur
-        run: |
-          curl -sL https://install.zeabur.app | bash
-          export PATH="$HOME/.zeabur/bin:$PATH"
-          
-          # The execution agent is deployed per-user via the backend API
-          # This workflow builds the image; deployment happens via API
-          echo "Execution agent image built: ${{ env.REGISTRY }}/${{ env.REPO }}/execution-agent:${{ github.sha }}"
-          echo "Use backend API POST /v1/execution-agents to provision user containers"
+        env:
+          ZEABUR_TOKEN: ${{ secrets.ZEABUR_TOKEN }}
