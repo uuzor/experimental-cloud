@@ -1,8 +1,8 @@
 """Type definitions for the execution agent."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -37,20 +37,23 @@ class PositionStatus(Enum):
 @dataclass
 class TradingSignal:
     """Signal from the signal tracker."""
+    # Required fields first
     signal_id: str
     trader_address: str
-    trader_pnl_percent: float
-    trader_drawdown: float
-    trader_win_rate: float
     symbol: str
-    side: str
+    side: str  # "long" or "short"
     entry_price: float
     current_price: float
     size: float
     leverage: int
-    unrealized_pnl_percent: float
     timestamp: int
     trade_hash: str
+    # Optional fields (defaults)
+    action: str = "open"  # "open", "close", "adjust"
+    trader_pnl_percent: float = 0.0
+    trader_drawdown: float = 0.0
+    trader_win_rate: float = 0.0
+    unrealized_pnl_percent: float = 0.0
 
 
 @dataclass
@@ -85,14 +88,12 @@ class OrderResult:
     success: bool
     order_id: Optional[str] = None
     status: Optional[str] = None
-    fills: list[dict] = None
+    fills: list = field(default_factory=list)
     error: Optional[str] = None
-    timestamp: int = None
+    timestamp: int = 0
 
     def __post_init__(self):
-        if self.fills is None:
-            self.fills = []
-        if self.timestamp is None:
+        if self.timestamp == 0:
             self.timestamp = int(datetime.now().timestamp() * 1000)
 
 
@@ -103,9 +104,9 @@ class WalletState:
     equity: float
     margin_used: float
     withdrawable: float
-    positions: list[Position]
-    open_orders: int
-    last_updated: int
+    positions: list = field(default_factory=list)
+    open_orders: int = 0
+    last_updated: int = 0
 
 
 @dataclass
@@ -119,12 +120,17 @@ class CopyTradeConfig:
     stop_loss_percent: float
     take_profit_percent: float
     enabled: bool = True
+    # Extended config
+    max_position_size_usd: float = 100.0
+    allowed_symbols: List[str] = field(default_factory=lambda: ["BTC", "ETH"])
+    max_position_pct: float = 0.1  # 10% of account
 
 
 @dataclass
 class ExecutorMetrics:
     """Metrics for the executor."""
     signals_processed: int = 0
+    signals_rejected: int = 0
     orders_submitted: int = 0
     orders_filled: int = 0
     orders_failed: int = 0

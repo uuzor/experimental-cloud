@@ -28,7 +28,7 @@ export interface HyperliquidOrder {
   timestamp: number;
   orderType: {
     type: 'Market' | 'Limit' | 'Stop' | 'Trigger' | 'MarketLimit' | 'LimitTpsl' | 'StopTpsl';
-    limit?: { limitPrice: string; n: number; }; // TWAP parameters
+    limit?: { limitPrice: string; n: number; };
     trigger?: { triggerPx: string; tpslMode?: string; };
   };
   filled: string;
@@ -49,12 +49,14 @@ export interface HyperliquidTrade {
 
 // Signal types
 export interface TradingSignal {
+  signalId: string;
   traderAddress: string;
-  traderPnlPercent: number; // Last 7-day PnL %
-  traderDrawdown: number; // Current max drawdown %
-  traderWinRate: number; // Win rate %
+  traderPnlPercent: number;
+  traderDrawdown: number;
+  traderWinRate: number;
   symbol: string;
   side: 'long' | 'short';
+  action: 'open' | 'close' | 'adjust';
   entryPrice: number;
   currentPrice: number;
   size: number;
@@ -64,17 +66,6 @@ export interface TradingSignal {
   tradeHash: string;
 }
 
-export interface TopTrader {
-  address: string;
-  pnl7d: number;
-  pnlPercent7d: number;
-  drawdown: number;
-  winRate: number;
-  totalTrades: number;
-  volume24h: number;
-  lastUpdated: number;
-}
-
-// Redis pub/sub channels
-export const SIGNAL_CHANNEL = 'trading_signals';
-export const TOP_TRADERS_CHANNEL = 'top_traders';
+// Redis pub/sub channels - V1
+export const SIGNAL_CHANNEL = 'signals:v1';
+export const TOP_TRADERS_CHANNEL = 'top_traders:v1';
