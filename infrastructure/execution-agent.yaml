@@ -4,58 +4,69 @@ kind: Template
 metadata:
     name: AI Copy-Trading Execution Agent
 spec:
-    description: Per-user execution agent that subscribes to trading signals and executes trades
-    icon: https://cdn.zeabur.com/marketplace/python.svg
+    description: Per-user execution agent that subscribes to trading signals and executes copy trades on Hyperliquid
+    icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/python.svg
     tags:
         - Trading
-        - Execution Agent
-    # Template variables that can be set when deploying
-    variables:
-        - key: EXECUTION_AGENT_IMAGE
-          description: Docker image for the execution agent
-          default: ghcr.io/uuzor/experimental-cloud/execution-agent:latest
-        - key: MAX_POSITION_USD
-          description: Maximum position size in USD
-          default: "100"
-        - key: MAX_LEVERAGE
-          description: Maximum leverage
-          default: "3"
-        - key: ALLOWED_SYMBOLS
-          description: Comma-separated list of allowed trading symbols
-          default: "BTC,ETH"
+        - Hyperliquid
+        - Bot
+    readme: |
+        # AI Copy-Trading Execution Agent
+
+        A per-user execution agent that subscribes to trading signals and executes copy trades on Hyperliquid.
+
+        ## Configuration
+
+        Configure these variables after deployment:
+        - `AGENT_ID` - Agent UUID from backend
+        - `AGENT_TOKEN` - Authentication token from backend
+        - `BACKEND_URL` - Backend API URL
+        - `REDIS_URL` - Redis connection for signal subscription
+        - `PLATFORM_API_KEY` - Internal API key
+
+        ## Default Values
+
+        - `MAX_POSITION_USD`: 100
+        - `MAX_LEVERAGE`: 3
+        - `ALLOWED_SYMBOLS`: BTC,ETH
+
+        ## License
+
+        MIT License - See https://github.com/uuzor/experimental-cloud
     services:
         - name: execution-agent
           template: PREBUILT_V2
           spec:
             source:
-                image: ${EXECUTION_AGENT_IMAGE}
+                image: ghcr.io/uuzor/experimental-cloud/execution-agent:latest
                 command:
                     - python
                     - -m
-                    - src.executor_agent.main
+                    - executor_agent
             ports:
                 - id: api
                   port: 3002
                   type: HTTP
-                  domainKey: PUBLIC_DOMAIN
+            healthCheck:
+                type: HTTP
+                port: api
+                http:
+                    path: /health
             env:
                 NODE_ENV:
                     default: production
                 PORT:
                     default: "3002"
-                # Agent configuration (set by backend on creation)
                 AGENT_ID:
                     default: ""
-                    description: "Agent UUID from backend"
                 AGENT_TOKEN:
                     default: ""
-                    description: "Authentication token from backend"
                 BACKEND_URL:
-                    default: ${BACKEND_URL}
+                    default: ""
                 REDIS_URL:
-                    default: ${REDIS_URL}
+                    default: ""
                 PLATFORM_API_KEY:
-                    default: ${PLATFORM_API_KEY}
+                    default: ""
                 MAX_POSITION_USD:
                     default: "100"
                 MAX_LEVERAGE:

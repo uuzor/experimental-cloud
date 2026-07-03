@@ -44,4 +44,4 @@ EXPOSE 3002
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:3002/health')" || exit 1
 
-CMD ["dumb-init", "python", "-m", "executor_agent.main"]
+CMD ["dumb-init", "python", "-m", "executor_agent"]

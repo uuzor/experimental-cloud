@@ -29,3 +29,5 @@ htmlcov/
 *.pem
 *.key
 secrets/
+*.env
+prod.env

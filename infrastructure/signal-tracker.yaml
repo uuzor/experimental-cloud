@@ -4,11 +4,27 @@ kind: Template
 metadata:
     name: AI Copy-Trading Signal Tracker
 spec:
-    description: Monitors Hyperliquid wallets and emits trading signals via Redis
-    icon: https://cdn.zeabur.com/marketplace/nodejs.svg
+    description: Monitors Hyperliquid wallets and emits trading signals via Redis pub/sub
+    icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/nodejs.svg
     tags:
         - Trading
+        - Hyperliquid
         - Signals
+    readme: |
+        # AI Copy-Trading Signal Tracker
+
+        Monitors Hyperliquid wallets and emits trading signals via Redis pub/sub.
+
+        ## Configuration
+
+        - `REDIS_URL` - Redis connection string
+        - `BACKEND_URL` - Backend API URL for heartbeats
+        - `HYPERLIQUID_NETWORK` - testnet or mainnet
+        - `POLL_INTERVAL_MS` - Poll interval (default: 10000ms)
+
+        ## License
+
+        MIT License - See https://github.com/uuzor/experimental-cloud
     services:
         - name: signal-tracker
           template: PREBUILT_V2
@@ -22,25 +38,21 @@ spec:
                 - id: web
                   port: 3001
                   type: HTTP
-                  domainKey: PUBLIC_DOMAIN
-            dependencies:
-                - redis
+            healthCheck:
+                type: HTTP
+                port: web
+                http:
+                    path: /health
             env:
                 NODE_ENV:
                     default: production
                 PORT:
                     default: "3001"
                 REDIS_URL:
-                    default: ${REDIS_URL}
+                    default: ""
                 BACKEND_URL:
-                    default: http://backend:3000
-                # Hyperliquid Configuration
+                    default: ""
                 HYPERLIQUID_NETWORK:
                     default: testnet
-                # Polling Configuration
                 POLL_INTERVAL_MS:
                     default: "10000"
-                # Tracked Traders (comma-separated wallet addresses)
-                # Add your tracked trader addresses here
-                TRACKED_TRADERS:
-                    default: ""
