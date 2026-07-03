@@ -46,7 +46,7 @@ export class ZeaburServiceManager {
     this.baseUrl = ZEABUR_API_BASE;
   }
 
-  private get headers(): HeadersInit {
+  private get headers(): Record<string, string> {
     return {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
