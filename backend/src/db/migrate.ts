@@ -28,11 +28,25 @@ async function migrate() {
     `);
     logger.info('Created users table');
 
+    // Hyperliquid agent wallets table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS hl_agent_wallets (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        agent_address TEXT NOT NULL,
+        agent_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        registered_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    logger.info('Created hl_agent_wallets table');
+
     // Execution agents table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS execution_agents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        wallet_id UUID REFERENCES hl_agent_wallets(id),
         agent_token TEXT,
         zeabur_service_id TEXT,
         internal_url TEXT,
@@ -80,7 +94,11 @@ async function migrate() {
     logger.info('Created signals table');
 
     // Indexes
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_hl_agent_wallets_user_id ON hl_agent_wallets(user_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_hl_agent_wallets_address ON hl_agent_wallets(agent_address)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_execution_agents_user_id ON execution_agents(user_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_execution_agents_wallet_id ON execution_agents(wallet_id)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_execution_agents_status ON execution_agents(status)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_signals_trader_address ON signals(trader_address)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at DESC)');
