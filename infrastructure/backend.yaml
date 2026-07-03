@@ -9,29 +9,12 @@ spec:
     tags:
         - Trading
         - API
-    readme: |
-        # AI Copy-Trading Backend
-
-        Fastify + TypeScript backend API for the AI Copy-Trading Signal Platform.
-
-        ## Features
-
-        - User authentication (JWT)
-        - Execution agent management
-        - Internal telemetry endpoints
-        - Audit logging
-
-        ## Configuration
-
-        - `DATABASE_URL` - PostgreSQL connection string
-        - `JWT_SECRET` - JWT signing secret
-        - `PLATFORM_API_KEY` - Internal API key for agent provisioning
     services:
         - name: backend
           template: PREBUILT_V2
           spec:
             source:
-                image: ghcr.io/your-org/ai-copytrading-backend:latest
+                image: ghcr.io/uuzor/experimental-cloud/backend:latest
                 command:
                     - node
                     - dist/server.js
@@ -46,22 +29,19 @@ spec:
             env:
                 NODE_ENV:
                     default: production
-                    expose: false
                 PORT:
                     default: "3000"
-                    expose: false
                 DATABASE_URL:
                     default: ${POSTGRES_CONNECTION_STRING}
-                    expose: false
                 JWT_SECRET:
                     default: ${PASSWORD}
-                    expose: false
                 JWT_EXPIRES_IN:
                     default: 7d
-                    expose: false
                 PLATFORM_API_KEY:
                     default: ${PASSWORD}
-                    expose: false
                 REDIS_URL:
                     default: ${REDIS_URL}
-                    expose: false
+                BACKEND_URL:
+                    default: https://${PUBLIC_DOMAIN}
+                EXECUTION_AGENT_IMAGE:
+                    default: ghcr.io/uuzor/experimental-cloud/execution-agent:latest

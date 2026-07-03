@@ -4,48 +4,43 @@ kind: Template
 metadata:
     name: AI Copy-Trading Signal Tracker
 spec:
-    description: Signal Tracker Service - Polls Hyperliquid for top trader activity and emits trading signals
+    description: Monitors Hyperliquid wallets and emits trading signals via Redis
     icon: https://cdn.zeabur.com/marketplace/nodejs.svg
     tags:
         - Trading
-        - Hyperliquid
-        - Signal
-    readme: |
-        # AI Copy-Trading Signal Tracker
-
-        This service tracks top traders on Hyperliquid and emits trading signals.
-
-        ## Configuration
-
-        - `REDIS_URL` - Redis connection string
-        - `BACKEND_URL` - Backend API URL for heartbeat
-        - `LOG_LEVEL` - Logging level (default: info)
+        - Signals
     services:
         - name: signal-tracker
           template: PREBUILT_V2
           spec:
             source:
-                image: ghcr.io/your-org/ai-copytrading-signal-tracker:latest
+                image: ghcr.io/uuzor/experimental-cloud/signal-tracker:latest
                 command:
                     - node
                     - dist/index.js
             ports:
                 - id: web
                   port: 3001
-                  type: TCP
+                  type: HTTP
+                  domainKey: PUBLIC_DOMAIN
             dependencies:
-                - postgresql
                 - redis
             env:
                 NODE_ENV:
                     default: production
-                    expose: false
-                LOG_LEVEL:
-                    default: info
-                    expose: false
+                PORT:
+                    default: "3001"
                 REDIS_URL:
                     default: ${REDIS_URL}
-                    expose: false
                 BACKEND_URL:
-                    default: ${ZEABUR_WEB_URL}
-                    expose: false
+                    default: http://backend:3000
+                # Hyperliquid Configuration
+                HYPERLIQUID_NETWORK:
+                    default: testnet
+                # Polling Configuration
+                POLL_INTERVAL_MS:
+                    default: "10000"
+                # Tracked Traders (comma-separated wallet addresses)
+                # Add your tracked trader addresses here
+                TRACKED_TRADERS:
+                    default: ""
