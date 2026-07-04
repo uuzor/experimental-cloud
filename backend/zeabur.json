@@ -2,15 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/zeabur/zeabur/main/docs/config.schema.json",
   "project": "ai-copytrading-indite",
   "service": "backend",
+  "server": "6a4818dc4f8d7c7234e5cbb3",
   "build": {
     "dockerfilePath": "Dockerfile",
     "context": "."
   },
-  "port": 3000,
-  "env": [
-    {
-      "key": "NODE_ENV",
-      "value": "production"
-    }
-  ]
+  "port": 3000
 }
