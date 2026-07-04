@@ -46,18 +46,18 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS execution_agents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        wallet_id UUID REFERENCES hl_agent_wallets(id),
-        agent_token TEXT,
+        wallet_id UUID,
         zeabur_service_id TEXT,
-        internal_url TEXT,
+        zeabur_project_id TEXT,
+        agent_internal_url TEXT,
+        agent_control_token_hash TEXT,
         status TEXT NOT NULL DEFAULT 'provisioning',
         max_position_usd DECIMAL(12, 2) NOT NULL DEFAULT 100,
         max_leverage INTEGER NOT NULL DEFAULT 3,
         daily_loss_limit_usd DECIMAL(12, 2),
         llm_filter_enabled BOOLEAN NOT NULL DEFAULT false,
-        last_heartbeat TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        last_heartbeat_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
     logger.info('Created execution_agents table');

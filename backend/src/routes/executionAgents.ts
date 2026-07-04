@@ -75,10 +75,10 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
         // Create execution agent in DB
         const result = await pool.query(
           `INSERT INTO execution_agents
-           (user_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agent_token, status)
-           VALUES ($1, $2, $3, $4, $5, $6, 'provisioning')
+           (user_id, wallet_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agent_control_token_hash, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'provisioning')
            RETURNING *`,
-          [user.id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agentToken]
+          [user.id, wallet_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agentToken]
         );
 
         const agent = result.rows[0];
@@ -98,13 +98,13 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           // Update agent with Zeabur service info
           await pool.query(
             `UPDATE execution_agents 
-             SET zeabur_service_id = $1, internal_url = $2, status = 'active'
+             SET zeabur_service_id = $1, agent_internal_url = $2, status = 'active'
              WHERE id = $3`,
             [zeaburService.id, zeaburService.url, agent.id]
           );
           
           agent.zeabur_service_id = zeaburService.id;
-          agent.internal_url = zeaburService.url;
+          agent.agent_internal_url = zeaburService.url;
           agent.status = 'active';
         } else {
           // Failed to provision, mark as failed
@@ -129,7 +129,7 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
           agent: {
             id: agent.id,
             status: agent.status,
-            internalUrl: agent.internal_url || zeaburService?.url,
+            internalUrl: agent.agent_internal_url || zeaburService?.url,
             zeaburServiceId: agent.zeabur_service_id || zeaburService?.id,
             config: {
               maxPositionUsd: agent.max_position_usd,
@@ -141,7 +141,7 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
         });
       } catch (err) {
         agentLogger.error({ err }, 'Failed to create execution agent');
-        return reply.status(500).send({ error: 'Internal server error' });
+        return reply.status(500).send({ error: 'Internal server error', details: String(err) });
       }
     }
   );
