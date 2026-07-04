@@ -34,13 +34,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Zeabur CLI
-        run: |
-          npm install -g zeabur-cli
-
       - name: Deploy to Zeabur
         run: |
-          zeabur deploy \
+          npx zeabur deploy \
             --project ${{ secrets.ZEABUR_PROJECT_ID }} \
             --service backend \
             --template infrastructure/backend.yaml
@@ -56,13 +52,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Zeabur CLI
-        run: |
-          npm install -g zeabur-cli
-
       - name: Deploy to Zeabur
         run: |
-          zeabur deploy \
+          npx zeabur deploy \
             --project ${{ secrets.ZEABUR_PROJECT_ID }} \
             --service signal-tracker \
             --template infrastructure/signal-tracker.yaml
