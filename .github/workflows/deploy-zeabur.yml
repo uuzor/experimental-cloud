@@ -34,10 +34,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to Zeabur
+      - name: Create/Set project
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
+          npx zeabur@latest project create ai-copytrading --json 2>/dev/null || true
           npx zeabur@latest context set project --name ai-copytrading
+
+      - name: Deploy backend
+        run: |
           npx zeabur@latest deploy -i=false
         env:
           ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
@@ -51,10 +55,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to Zeabur
+      - name: Create/Set project
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
+          npx zeabur@latest project create ai-copytrading --json 2>/dev/null || true
           npx zeabur@latest context set project --name ai-copytrading
+
+      - name: Deploy signal-tracker
+        run: |
           npx zeabur@latest deploy -i=false
         env:
           ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
