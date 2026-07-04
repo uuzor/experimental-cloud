@@ -38,7 +38,7 @@ jobs:
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
           npx zeabur@latest context set project --name ai-copytrading
-          npx zeabur@latest template deploy -f infrastructure/backend.yaml -i=false
+          npx zeabur@latest deploy -i=false
         env:
           ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
 
@@ -55,6 +55,6 @@ jobs:
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
           npx zeabur@latest context set project --name ai-copytrading
-          npx zeabur@latest template deploy -f infrastructure/signal-tracker.yaml -i=false
+          npx zeabur@latest deploy -i=false
         env:
           ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
