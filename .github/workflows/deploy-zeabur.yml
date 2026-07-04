@@ -35,11 +35,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy
+      - name: Deploy backend
         run: |
-          npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest context set project --id 6a4818d24f8d7c7234e5cbb2
-          npx zeabur@latest deploy -i=false
+          cd backend
+          npx zeabur@latest deploy --project-id 6a4818d24f8d7c7234e5cbb2 --name backend --json
 
   deploy-signal-tracker:
     if: github.event.inputs.service == 'signal-tracker' || github.event.inputs.service == 'all'
@@ -50,8 +49,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy
+      - name: Deploy signal-tracker
         run: |
-          npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest context set project --id 6a4818d24f8d7c7234e5cbb2
-          npx zeabur@latest deploy -i=false
+          cd signal-tracker
+          npx zeabur@latest deploy --project-id 6a4818d24f8d7c7234e5cbb2 --name signal-tracker --json
