@@ -31,13 +31,16 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
 
     steps:
-      - name: Deploy via Zeabur GraphQL API
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Zeabur
         run: |
-          # Get project and service info
-          curl -s -X POST 'https://api.zeabur.com/graphql' \
-            -H 'Content-Type: application/json' \
-            -H 'Authorization: Bearer ${{ secrets.ZEABUR_TOKEN }}' \
-            -d '{"query":"{ viewer { projects { edges { node { id name services { edges { node { id name } } } } } } } }"}' | jq .
+          npx zeabur@latest auth login --token $ZEABUR_API_KEY
+          npx zeabur@latest context set project --name experimental-cloud
+          npx zeabur@latest template deploy -f infrastructure/backend.yaml -i=false
+        env:
+          ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
 
   deploy-signal-tracker:
     if: github.event.inputs.service == 'signal-tracker' || github.event.inputs.service == 'all'
@@ -45,9 +48,13 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
 
     steps:
-      - name: Deploy via Zeabur GraphQL API
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Zeabur
         run: |
-          curl -s -X POST 'https://api.zeabur.com/graphql' \
-            -H 'Content-Type: application/json' \
-            -H 'Authorization: Bearer ${{ secrets.ZEABUR_TOKEN }}' \
-            -d '{"query":"{ viewer { projects { edges { node { id name services { edges { node { id name } } } } } } } }"}' | jq .
+          npx zeabur@latest auth login --token $ZEABUR_API_KEY
+          npx zeabur@latest context set project --name experimental-cloud
+          npx zeabur@latest template deploy -f infrastructure/signal-tracker.yaml -i=false
+        env:
+          ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
