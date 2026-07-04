@@ -57,10 +57,11 @@ export async function walletRoutes(fastify: FastifyInstance) {
         }
 
         // Register the wallet
+        // Note: encrypted_agent_key and master_address may not exist in all schemas
         const result = await pool.query(
           `INSERT INTO hl_agent_wallets
-           (user_id, agent_address, agent_name, status)
-           VALUES ($1, $2, $3, 'active')
+           (user_id, agent_address, agent_name, status, registered_at)
+           VALUES ($1, $2, $3, 'active', NOW())
            RETURNING *`,
           [user.id, agent_address.toLowerCase(), agent_name]
         );

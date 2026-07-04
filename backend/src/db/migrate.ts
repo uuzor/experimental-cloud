@@ -18,7 +18,6 @@ async function migrate() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        username TEXT NOT NULL,
         subscription_status TEXT NOT NULL DEFAULT 'inactive',
         stripe_customer_id TEXT,
         timezone TEXT DEFAULT 'UTC',
@@ -35,6 +34,8 @@ async function migrate() {
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         agent_address TEXT NOT NULL,
         agent_name TEXT NOT NULL,
+        encrypted_agent_key TEXT,
+        master_address TEXT,
         status TEXT NOT NULL DEFAULT 'active',
         registered_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
