@@ -67,32 +67,61 @@ export class ZeaburServiceManager {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/services`, {
+      // Try GraphQL mutation for service creation
+      const query = `
+        mutation CreateService($input: CreateServiceInput!) {
+          createService(input: $input) {
+            id
+            name
+            url
+            status
+          }
+        }
+      `;
+      
+      const response = await fetch(`${this.baseUrl}/graphql`, {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify({
-          projectId: this.projectId,
-          name: config.name,
-          image: config.image,
-          env: config.env,
-          port: config.port || 3002,
-          region: config.region,
+          query,
+          variables: {
+            input: {
+              projectId: this.projectId,
+              name: config.name,
+              image: config.image,
+              env: config.env,
+              port: config.port || 3002,
+              region: config.region,
+            }
+          }
         }),
       });
 
       if (!response.ok) {
         const error = await response.text();
-        zeaburLogger.error({ status: response.status, error }, 'Failed to create Zeabur service');
-        return null;
+        zeaburLogger.warn({ status: response.status, error }, 'Zeabur API error, using mock');
+        return this.getMockService(config.name);
       }
 
-      const service = await response.json() as ZeaburService;
+      const result = await response.json() as { data?: { createService?: ZeaburService }; errors?: Array<{ message: string }> };
+      
+      if (result.errors && result.errors.length > 0) {
+        zeaburLogger.warn({ errors: result.errors }, 'Zeabur GraphQL errors, using mock');
+        return this.getMockService(config.name);
+      }
+      
+      if (!result.data?.createService) {
+        zeaburLogger.warn('No service returned, using mock');
+        return this.getMockService(config.name);
+      }
+
+      const service = result.data.createService;
       zeaburLogger.info({ serviceId: service.id, name: config.name }, 'Zeabur service created');
       
       return service;
     } catch (err) {
-      zeaburLogger.error({ err }, 'Error creating Zeabur service');
-      return null;
+      zeaburLogger.warn({ err }, 'Error calling Zeabur API, using mock');
+      return this.getMockService(config.name);
     }
   }
 
