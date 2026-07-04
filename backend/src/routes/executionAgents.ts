@@ -76,9 +76,9 @@ export async function executionAgentRoutes(fastify: FastifyInstance) {
         const result = await pool.query(
           `INSERT INTO execution_agents
            (user_id, wallet_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agent_control_token_hash, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, 'provisioning')
+           VALUES ($1, NULL, $2, $3, $4, $5, $6, 'provisioning')
            RETURNING *`,
-          [user.id, wallet_id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agentToken]
+          [user.id, max_position_usd, max_leverage, daily_loss_limit_usd, llm_filter_enabled, agentToken]
         );
 
         const agent = result.rows[0];
