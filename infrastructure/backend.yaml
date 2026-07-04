@@ -22,7 +22,6 @@ spec:
                 - id: web
                   port: 3000
                   type: HTTP
-                  domainKey: PUBLIC_DOMAIN
             dependencies:
                 - postgresql
                 - redis
