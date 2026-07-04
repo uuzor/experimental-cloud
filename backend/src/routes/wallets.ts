@@ -88,8 +88,8 @@ export async function walletRoutes(fastify: FastifyInstance) {
           },
         });
       } catch (err) {
-        walletLogger.error({ err }, 'Failed to register wallet');
-        return reply.status(500).send({ error: 'Internal server error' });
+        walletLogger.error({ err, userId: user.id }, 'Failed to register wallet');
+        return reply.status(500).send({ error: 'Internal server error', details: String(err) });
       }
     }
   );

@@ -21,8 +21,7 @@ async function migrate() {
         subscription_status TEXT NOT NULL DEFAULT 'inactive',
         stripe_customer_id TEXT,
         timezone TEXT DEFAULT 'UTC',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
     logger.info('Created users table');
