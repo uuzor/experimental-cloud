@@ -36,12 +36,12 @@ jobs:
 
       - name: Deploy to Zeabur
         run: |
-          npx zeabur deploy \
-            --project ${{ secrets.ZEABUR_PROJECT_ID }} \
-            --service backend \
-            --template infrastructure/backend.yaml
+          npx zeabur@latest auth login --token $ZEABUR_TOKEN
+          npx zeabur@latest context set project --name $ZEABUR_PROJECT_NAME
+          npx zeabur@latest template deploy -f infrastructure/backend.yaml
         env:
           ZEABUR_TOKEN: ${{ secrets.ZEABUR_TOKEN }}
+          ZEABUR_PROJECT_NAME: ${{ vars.ZEABUR_PROJECT_NAME }}
 
   deploy-signal-tracker:
     if: github.event.inputs.service == 'signal-tracker' || github.event.inputs.service == 'all'
@@ -54,9 +54,9 @@ jobs:
 
       - name: Deploy to Zeabur
         run: |
-          npx zeabur deploy \
-            --project ${{ secrets.ZEABUR_PROJECT_ID }} \
-            --service signal-tracker \
-            --template infrastructure/signal-tracker.yaml
+          npx zeabur@latest auth login --token $ZEABUR_TOKEN
+          npx zeabur@latest context set project --name $ZEABUR_PROJECT_NAME
+          npx zeabur@latest template deploy -f infrastructure/signal-tracker.yaml
         env:
           ZEABUR_TOKEN: ${{ secrets.ZEABUR_TOKEN }}
+          ZEABUR_PROJECT_NAME: ${{ vars.ZEABUR_PROJECT_NAME }}
