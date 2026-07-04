@@ -30,6 +30,8 @@ jobs:
         with:
           context: ./signal-tracker
           push: true
-          tags: ghcr.io/${{ github.repository }}/signal-tracker:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ github.repository }}/signal-tracker:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/signal-tracker:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
