@@ -23,6 +23,7 @@ on:
 env:
   REGISTRY: ghcr.io
   REPO: ${{ github.repository }}
+  ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
 
 jobs:
   deploy-backend:
@@ -34,17 +35,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create/Set project
+      - name: Create/Set project and Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
           npx zeabur@latest project create ai-copytrading --json 2>/dev/null || true
           npx zeabur@latest context set project --name ai-copytrading
-
-      - name: Deploy backend
-        run: |
           npx zeabur@latest deploy -i=false
-        env:
-          ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
 
   deploy-signal-tracker:
     if: github.event.inputs.service == 'signal-tracker' || github.event.inputs.service == 'all'
@@ -55,14 +51,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create/Set project
+      - name: Create/Set project and Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
           npx zeabur@latest project create ai-copytrading --json 2>/dev/null || true
           npx zeabur@latest context set project --name ai-copytrading
-
-      - name: Deploy signal-tracker
-        run: |
           npx zeabur@latest deploy -i=false
-        env:
-          ZEABUR_API_KEY: ${{ secrets.ZEABUR_API_KEY }}
