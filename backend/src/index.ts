@@ -6,6 +6,7 @@ import { logger } from './db/logger.js';
 import { pool } from './db/index.js';
 import { authRoutes } from './routes/auth.js';
 import { executionAgentRoutes } from './routes/executionAgents.js';
+import { walletRoutes } from './routes/wallets.js';
 import { internalRoutes } from './routes/internal.js';
 
 const fastify = Fastify({
@@ -38,6 +39,7 @@ fastify.get('/health', async () => {
 
 // Register routes
 fastify.register(authRoutes, { prefix: '/v1/auth' });
+fastify.register(walletRoutes, { prefix: '/v1/wallets' });
 fastify.register(executionAgentRoutes, { prefix: '/v1/execution-agents' });
 fastify.register(internalRoutes, { prefix: '/v1' });
 
