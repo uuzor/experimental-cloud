@@ -35,10 +35,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create/Set project and Deploy
+      - name: Create project and Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest project create --name ai-copytrading --json 2>/dev/null || true
+          npx zeabur@latest project create --name ai-copytrading --region "Hetzner Ashburn" -i=false || true
           npx zeabur@latest context set project --name ai-copytrading
           npx zeabur@latest deploy -i=false
 
@@ -51,9 +51,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create/Set project and Deploy
+      - name: Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest project create --name ai-copytrading --json 2>/dev/null || true
           npx zeabur@latest context set project --name ai-copytrading
           npx zeabur@latest deploy -i=false
