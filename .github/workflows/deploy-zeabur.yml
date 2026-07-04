@@ -38,7 +38,7 @@ jobs:
       - name: Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest context set project --name "ai-copytrading-indite"
+          npx zeabur@latest context set project --id 6a4818d24f8d7c7234e5cbb2
           npx zeabur@latest deploy -i=false
 
   deploy-signal-tracker:
@@ -53,5 +53,5 @@ jobs:
       - name: Deploy
         run: |
           npx zeabur@latest auth login --token $ZEABUR_API_KEY
-          npx zeabur@latest context set project --name "ai-copytrading-indite"
+          npx zeabur@latest context set project --id 6a4818d24f8d7c7234e5cbb2
           npx zeabur@latest deploy -i=false
